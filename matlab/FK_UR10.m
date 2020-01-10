@@ -45,10 +45,3 @@ T_6_0(4,2)=0;
 T_6_0(4,3)=0;
 T_6_0(4,4)=1;
 
-phi_6_0 = angle(-(cos(q1) + sin(q1)*1i)*(cos(q6)*sin(q5)*1i - sin(q2 + q3 + q4)*sin(q6) + cos(q2 + q3 + q4)*cos(q5)*cos(q6)));
-theta_6_0 = atan2(cos(q2 + q3 + q4)*sin(q6) + sin(q2 + q3 + q4)*cos(q5)*cos(q6), (1 - (cos(q2 + q3 + q4)*sin(q6) + sin(q2 + q3 + q4)*cos(q5)*cos(q6))^2)^(1/2));
-psi_6_0 = atan2(sin(q2 + q3 + q4)*cos(q5)*sin(q6) - cos(q2 + q3 + q4)*cos(q6), sin(q2 + q3 + q4)*sin(q5));
-
-X_ef_0 = [T_6_0(1,4);T_6_0(2,4);T_6_0(3,4);psi_6_0;theta_6_0;phi_6_0];
-
-end 
