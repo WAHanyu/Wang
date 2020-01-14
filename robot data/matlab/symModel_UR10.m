@@ -19,7 +19,8 @@ syms q1 q2 q3 q4 q5 q6 pq1 pq2 pq3 pq4 pq5 pq6 ppq1 ppq2 ppq3 ppq1 ppq2 ...
      beta4 beta5 beta6 I111 I112 I113 I122 I123 I133 I211 I212 I213 I222 ...
      I223 I233 I311 I312 I313 I322 I323 I333 I411 I412 I413 I422 I423 I433 ...
      I511 I512 I513 I522 I523 I533 I611 I612 I613 I622 I623 I633 pq1r pq2r ...
-     pq3r pq4r pq5r pq6r ppq1r ppq2r ppq3r ppq4r ppq5r ppq6r t_final t_init real;
+     pq3r pq4r pq5r pq6r ppq1r ppq2r ppq3r ppq4r ppq5r ppq6r t_final t_init ...
+     p_init p_final pp_init pp_final ppp_init ppp_final real;
 
 %% Robot Kinematics
 % D-H table from geometric inspection
@@ -99,6 +100,14 @@ J_ef_0(4:6,6) = T_i_0{5}(1:3,3);
 % derivative of jacobian
 pJ_ef_0 = simplify(diff(J_ef_0,q1)*pq1 + diff(J_ef_0,q2)*pq2 + diff(J_ef_0,q3)*pq3 ...
                     + diff(J_ef_0,q4)*pq4 + diff(J_ef_0,q5)*pq5 + diff(J_ef_0,q6)*pq6);
+                
+% forward & differential kinematics of robot
+phi_6_0=simplify(atan2(T_i_0{3}(2,1),T_i_0{3}(1,1))); % yaw around x-axis
+theta_6_0=simplify(atan2(-T_i_0{3}(3,1),sqrt(1-T_i_0{3}(3,1)^2))); % pitch around y-axis
+psi_6_0=simplify(atan2(T_i_0{3}(3,2),T_i_0{3}(3,3))); % roll arount z-axis
+X_ef_0 = [T_i_0{6}(4,1);T_i_0{6}(4,2);T_i_0{6}(4,3);psi_6_0;theta_6_0;phi_6_0];
+pX_ef_0 = simplify(J_ef_0*[pq1;pq2;pq3;pq4;pq5;pq6]);
+ppX_ef_0 = simplify(J_ef_0*[ppq1;ppq2;ppq3;ppq4;ppq5;ppq6]+pJ_ef_0*[pq1;pq2;pq3;pq4;pq5;pq6]);
 
 % jacobian of center of mass 1
 J_cmi_0{1} = sym(zeros(6,6));
@@ -316,7 +325,7 @@ T = [1 0                0                   0                       0           
      0 0                2                   6*(t_final-t_init)      12*(t_final-t_init)^2   20*(t_final-t_init)^3;];
  
 % Solution vector for linear system equation
-x = [0; 1; 0; 0; 0; 0];
+x = [p_init; p_final; pp_init; pp_final; ppp_init; ppp_final];
  
 % Solve system of linear equations
 a_x = simplify(T\x);
@@ -630,28 +639,90 @@ fprintf(fid_5,'ppQ=M\\(Tao_d-C*pQ-G);\n\n');
 fprintf(fid_5,'end \n');
 fclose(fid_5);
 
+% Kinematics & diff. kinematics for robot
+fid_6 = fopen('Forward_Diff_Kinematics_UR10.m','w');
+fprintf(fid_6,'function [XOut] = Forward_Diff_Kinematics_UR10(u)\n\n');
+fprintf(fid_6,'%% This file was generated automatically by "symModel_UR10".\n\n');
+fprintf(fid_6,'%%%% parameters\n');
+fprintf(fid_6,'%%Joint Position\n');
+fprintf(fid_6,'q1=u(1);\n');
+fprintf(fid_6,'q2=u(2);\n');
+fprintf(fid_6,'q3=u(3);\n');
+fprintf(fid_6,'q4=u(4);\n');
+fprintf(fid_6,'q5=u(5);\n');
+fprintf(fid_6,'q6=u(6);\n');
+fprintf(fid_6,'Q=[q1;q2;q3;q4;q5;q6];\n\n');
+fprintf(fid_6,'%%Joint Velocity\n');
+fprintf(fid_6,'pq1=u(7);\n');
+fprintf(fid_6,'pq2=u(8);\n');
+fprintf(fid_6,'pq3=u(9);\n');
+fprintf(fid_6,'pq4=u(10);\n');
+fprintf(fid_6,'pq5=u(11);\n');
+fprintf(fid_6,'pq6=u(12);\n');
+fprintf(fid_6,'pQ=[pq1;pq2;pq3;pq4;pq5;pq6];\n\n');
+fprintf(fid_6,'%%Joint Acceleration\n');
+fprintf(fid_6,'ppq1=u(13);\n');
+fprintf(fid_6,'ppq2=u(14);\n');
+fprintf(fid_6,'ppq3=u(15);\n');
+fprintf(fid_6,'ppq4=u(16);\n');
+fprintf(fid_6,'ppq5=u(17);\n');
+fprintf(fid_6,'ppq6=u(18);\n');
+fprintf(fid_6,'ppQ=[ppq1;ppq2;ppq3;ppq4;ppq5;ppq6];\n\n');
+fprintf(fid_6,'%%Kinematic Parameters\n');
+fprintf(fid_6,'L1=u(19);\n');
+fprintf(fid_6,'L2=u(20);\n');
+fprintf(fid_6,'L3=u(21);\n');
+fprintf(fid_6,'L4=u(22);\n');
+fprintf(fid_6,'L5=u(23);\n');
+fprintf(fid_6,'L6=u(24);\n');
+fprintf(fid_6,'L7=u(25);\n');
+fprintf(fid_6,'L8=u(26);\n');
+fprintf(fid_6,'L9=u(27);\n');
+fprintf(fid_6,'L10=u(28);\n');
+fprintf(fid_6,'L11=u(29);\n');
+fprintf(fid_6,'L12=u(30);\n');
+fprintf(fid_6,'L13=u(31);\n');
+fprintf(fid_6,'L14=u(32);\n\n');
+fprintf(fid_6,'%%End-effector position (forward kinematics)\n');
+for i=1:6
+	fprintf(fid_6,'X_ef_0(%d,1)=%s;\n',i,char(X_ef_0(i,1)));
+end
+fprintf(fid_6,'\n');
+fprintf(fid_6,'%%End-effector velocity (differential kinematics)\n');
+for i=1:6
+	fprintf(fid_6,'pX_ef_0(%d,1)=%s;\n',i,char(pX_ef_0(i,1)));
+end
+fprintf(fid_6,'\n');
+fprintf(fid_6,'%%End-effector acceleration\n');
+for i=1:6
+	fprintf(fid_6,'ppX_ef_0(%d,1)=%s;\n',i,char(ppX_ef_0(i,1)));
+end
+fprintf(fid_6,'\n');
+fprintf(fid_6,'%%Output\n');
+fprintf(fid_6,'XOut=[X_ef_0,pX_ef_0,ppX_ef_0];\n');
+fprintf(fid_6,'end \n');
+fclose(fid_6);
+
 % Create trajectory according to 5th degree polynomial
 fid_7 = fopen('createEvalPTPTraj.m','w');
-fprintf(fid_7,'function [Out] = createEvalPTPTraj(t,p_init,p_final,t_init,t_final)\n\n');
+fprintf(fid_7,'function [Out] = createEvalPTPTraj(t,t_init,t_final,P_init,P_final,pP_init,pP_final,ppP_init,ppP_final)\n\n');
 fprintf(fid_7,'%% This file was generated automatically by "symModel_UR10_3".\n\n');
+fprintf(fid_7,'for i=1:length(P_init)\n');
+fprintf(fid_7,'  p_init=P_init(i,1);\n');
+fprintf(fid_7,'  p_final=P_final(i,1);\n');
+fprintf(fid_7,'  pp_init=pP_init(i,1);\n');
+fprintf(fid_7,'  pp_final=pP_final(i,1);\n');
+fprintf(fid_7,'  ppp_init=ppP_init(i,1);\n');
+fprintf(fid_7,'  ppp_final=ppP_final(i,1);\n\n');
 for i=1:length(a_x)
-    fprintf(fid_7,'a(%d,1) = %s;\n',i,char(a_x(i,1)));
+    fprintf(fid_7,'  a(%d,1) = %s;\n',i,char(a_x(i,1)));
 end
 fprintf(fid_7,'\n');
-fprintf(fid_7,'poly = a(1,1)+a(2,1)*(t-t_init)+a(3,1)*(t-t_init)^2+a(4,1)*(t-t_init)^3+a(5,1)*(t-t_init)^4+a(6,1)*(t-t_init)^5;\n');
-fprintf(fid_7,'ppoly = a(2,1)+2*a(3,1)*(t-t_init)+3*a(4,1)*(t-t_init)^2+4*a(5,1)*(t-t_init)^3+5*a(6,1)*(t-t_init)^4;\n');
-fprintf(fid_7,'pppoly = 2*a(3,1)+6*a(4,1)*(t-t_init)+12*a(5,1)*(t-t_init)+20*a(6,1)*(t-t_init)^3;\n');
-fprintf(fid_7,'p_d_w_1 = (p_final(1,1)-p_init(1,1))*poly+p_init(1,1);\n');
-fprintf(fid_7,'p_d_w_2 = (p_final(2,1)-p_init(2,1))*poly+p_init(2,1);\n');
-fprintf(fid_7,'p_d_w_3 = (p_final(3,1)-p_init(3,1))*poly+p_init(3,1);\n');
-fprintf(fid_7,'pp_d_w_1 = (p_final(1,1)-p_init(1,1))*ppoly;\n');
-fprintf(fid_7,'pp_d_w_2 = (p_final(2,1)-p_init(2,1))*ppoly;\n');
-fprintf(fid_7,'pp_d_w_3 = (p_final(3,1)-p_init(3,1))*ppoly;\n');
-fprintf(fid_7,'ppp_d_w_1 = (p_final(1,1)-p_init(1,1))*pppoly;\n');
-fprintf(fid_7,'ppp_d_w_2 = (p_final(2,1)-p_init(2,1))*ppoly;\n');
-fprintf(fid_7,'ppp_d_w_3 = (p_final(3,1)-p_init(3,1))*ppoly;\n');
-fprintf(fid_7,'\n');
-fprintf(fid_7,'Out = [p_d_w_1;p_d_w_2;p_d_w_3;pp_d_w_1;pp_d_w_2;pp_d_w_3;ppp_d_w_1;ppp_d_w_2;ppp_d_w_3];\n');
+fprintf(fid_7,'  p_d_w{i}=a(1,1)+a(2,1)*(t-t_init)+a(3,1)*(t-t_init)^2+a(4,1)*(t-t_init)^3+a(5,1)*(t-t_init)^4+a(6,1)*(t-t_init)^5;\n');
+fprintf(fid_7,'  pp_d_w{i}=a(2,1)+2*a(3,1)*(t-t_init)+3*a(4,1)*(t-t_init)^2+4*a(5,1)*(t-t_init)^3+5*a(6,1)*(t-t_init)^4;\n');
+fprintf(fid_7,'  ppp_d_w{i}=2*a(3,1)+6*a(4,1)*(t-t_init)+12*a(5,1)*(t-t_init)+20*a(6,1)*(t-t_init)^3;\n');
+fprintf(fid_7,'end\n\n');
+fprintf(fid_7,'Out = [p_d_w{1};p_d_w{2};p_d_w{3};pp_d_w{1};pp_d_w{2};pp_d_w{3};ppp_d_w{1};ppp_d_w{2};ppp_d_w{3}];\n');
 fprintf(fid_7,'end \n');
 fclose(fid_7);
 
