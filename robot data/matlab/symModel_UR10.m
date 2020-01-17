@@ -315,6 +315,15 @@ G = [simplify(diff(Pt,q1));
      simplify(diff(Pt,q5));
      simplify(diff(Pt,q6));];
  
+%% matrices for robot regressor
+MppQr = M*[ppq1r;ppq2r;ppq3r;ppq4r;ppq5r;ppq6r];
+CpQr = C*[pq1r;pq2r;pq3r;pq4r;pq5r;pq6r];
+for i=1:6
+        fprintf('simplify (i,1)=(%d,1))',i);
+        MppQr(i) = simplify(MppQr(i));
+        CpQr(i) = simplify(CpQr(i));
+end
+ 
 %% Trajectory Planning based on Jacobian
 % Matrix of 5th degree polynomial 
 T = [1 0                0                   0                       0                       0;
@@ -725,6 +734,26 @@ fprintf(fid_7,'end\n\n');
 fprintf(fid_7,'Out = [p_d_w{1};p_d_w{2};p_d_w{3};pp_d_w{1};pp_d_w{2};pp_d_w{3};ppp_d_w{1};ppp_d_w{2};ppp_d_w{3}];\n');
 fprintf(fid_7,'end \n');
 fclose(fid_7);
+
+%% matrices for robot regressor
+fid_8 = fopen('robot_regressor_matrices.txt','w');
+fprintf(fid_8,'%% inertia matrix\n');
+for i=1:6
+        fprintf(fid_8,'MppQr(%d,1)=%s;\n',i,char(expand(MppQr(i,1))));
+end
+fprintf(fid_8,'\n');
+fprintf(fid_8,'%% coriolis & centripetal effects matrix\n');
+for i=1:6
+    for j=1:6
+        fprintf(fid_8,'CpQr(%d,1)=%s;\n',i,char(expand(CpQr(i,1))));
+    end
+end
+fprintf(fid_8,'\n');
+fprintf(fid_8,'%% gravitational effects matrix\n');
+for i=1:6
+    fprintf(fid_8,'G(%d,1)=%s;\n',i,char(expand(G(i,1))));
+end
+fprintf(fid_8,'\n');
 
 end
 
