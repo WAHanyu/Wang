@@ -14,7 +14,7 @@ clc;
 
 % Define symbolic variables
 syms q1 q2 q3 q4 q5 q6 pq1 pq2 pq3 pq4 pq5 pq6 ppq1 ppq2 ppq3 ppq1 ppq2 ...
-     ppq3 ppq4 ppq5 ppq6 L1 L2 L3 L4 L5 L6 L7 L8 L9 L10 L11 L12 L13 L14 L15 ...
+     ppq3 ppq4 ppq5 ppq6 L1 L2 L3 L4 L5 L7 L8 L9 L10 L11 L12 L13 L14 L15 ...
      L16 m1 m2 m3 m4 m5 m6 g gx gy gz k1 k2 k3 k4 k5 k6 beta1 beta2 beta3...
      beta4 beta5 beta6 I111 I112 I113 I122 I123 I133 I211 I212 I213 I222 ...
      I223 I233 I311 I312 I313 I322 I323 I333 I411 I412 I413 I422 I423 I433 ...
@@ -24,18 +24,18 @@ syms q1 q2 q3 q4 q5 q6 pq1 pq2 pq3 pq4 pq5 pq6 ppq1 ppq2 ppq3 ppq1 ppq2 ...
 
 %% Robot Kinematics
 % D-H table from geometric inspection
-Dh = [q1       L1   0    pi/2;      % coordinate frame 1
-      q2-pi/2  0    -L3  0;         % coordinate frame 2
-      q3       0    -L5  0;         % coordinate frame 3
-      q4-pi/2  L2   0    pi/2;      % coordinate frame 4    
-      q5       L11  0    -pi/2;     % coordinate frame 5
-      q6       L4   0    0;         % coordinate frame 6
-      q1       L6   0    0;         % center of mass 1
-      q2-pi/2  L7   -L8  0;         % center of mass 2
-      q3       L9   -L10 0;         % center of mass 3
-      q4-pi/2  L12  0    0;         % center of mass 4
-      q5       L13  0    0;         % center of mass 5    
-      q6       L14  0    0;];       % center of mass 6
+Dh = [q1       L1   0    pi/2;     % coordinate frame 1
+      q2-pi/2  0    L2  0;         % coordinate frame 2
+      q3       0    L3  0;         % coordinate frame 3
+      q4-pi/2  L4   0   pi/2;      % coordinate frame 4    
+      q5       L5   0   -pi/2;     % coordinate frame 5
+      q6       L16  0   0;         % coordinate frame 6
+      q1       L15  0   0;         % center of mass 1
+      q2-pi/2  L7   L8  0;         % center of mass 2
+      q3       L9   L10 0;         % center of mass 3
+      q4-pi/2  L12  0   0;         % center of mass 4
+      q5       L13  0   0;         % center of mass 5    
+      q6       L14  0   0;];       % center of mass 6
 
 sDh=size(Dh);
 
@@ -232,12 +232,12 @@ test_M = simplify(M-M')
 
 %% matrix of Coriolis & Centripetal effects
 % partial derivatives
-dM_dqi{1} = simplify(diff(M,q1));
-dM_dqi{2} = simplify(diff(M,q2));
-dM_dqi{3} = simplify(diff(M,q3));
-dM_dqi{4} = simplify(diff(M,q4));
-dM_dqi{5} = simplify(diff(M,q5));
-dM_dqi{6} = simplify(diff(M,q6));
+dM_dqi{1} = diff(M,q1);
+dM_dqi{2} = diff(M,q2);
+dM_dqi{3} = diff(M,q3);
+dM_dqi{4} = diff(M,q4);
+dM_dqi{5} = diff(M,q5);
+dM_dqi{6} = diff(M,q6);
 
 % c matrix 
 C = sym(zeros(6));
@@ -255,7 +255,7 @@ end
 fprintf('\n');
 clear k j;
 
-%% Do simplification for each matrix element, because memory might run full
+% Do simplification for each matrix element, because memory might run full
 % and the simplification will cause a bad result
 sizeC = size(C);
 for i=1:sizeC(1)
@@ -267,17 +267,9 @@ end
 fprintf('\n');
 clear i j;
 
-% test matrix
+%% test matrix
 pM = dM_dqi{1}*pq1+dM_dqi{2}*pq2+dM_dqi{3}*pq3+dM_dqi{4}*pq4 ...
                 +dM_dqi{5}*pq5+dM_dqi{6}*pq6;
-for i=1:sizeM(1)
-    for j=1:sizeM(2)
-        fprintf('simplification of pM(%d,%d), ',i,j);
-        pM(i,j) = simplify(pM(i,j));
-    end
-end
-fprintf('\n');
-clear i j;
 
 N = simplify(pM-2*C);
 test_N = simplify(N+N')
@@ -305,7 +297,7 @@ P_cm{5} = m5*g*[gx,gy,gz]*T_i_0{11}(1:3,4);
 P_cm{6} = m6*g*[gx,gy,gz]*T_i_0{12}(1:3,4);
 
 % overall
-Pt = simplify(P_cm{1}+P_cm{2}+P_cm{3}+P_cm{4}+P_cm{5}+P_cm{6});
+Pt = P_cm{1}+P_cm{2}+P_cm{3}+P_cm{4}+P_cm{5}+P_cm{6};
 
 % g vector
 G = [simplify(diff(Pt,q1));
@@ -712,7 +704,7 @@ fprintf(fid_6,'XOut=[X_ef_0,pX_ef_0,ppX_ef_0];\n');
 fprintf(fid_6,'end \n');
 fclose(fid_6);
 
-% Create trajectory according to 5th degree polynomial
+%% Create trajectory according to 5th degree polynomial
 fid_7 = fopen('createEvalPTPTraj.m','w');
 fprintf(fid_7,'function [Out] = createEvalPTPTraj(t,t_init,t_final,P_init,P_final,pP_init,pP_final,ppP_init,ppP_final)\n\n');
 fprintf(fid_7,'%% This file was generated automatically by "symModel_UR10_3".\n\n');
