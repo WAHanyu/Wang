@@ -226,7 +226,6 @@ fprintf('\n');
 % case
 M = simplify(M);
 M(6,5) = M(5,6);
-M_i = simplify(M_i);
 
 %% test matrix
 test_M = simplify(M-M')
@@ -308,9 +307,14 @@ G = [simplify(diff(Pt,q1));
      simplify(diff(Pt,q5));
      simplify(diff(Pt,q6));];
  
-%% robot regressor
-
-
+%% matrices for robot regressor
+MppQr = M*[ppq1r;ppq2r;ppq3r;ppq4r;ppq5r;ppq6r];
+CpQr = C*[pq1r;pq2r;pq3r;pq4r;pq5r;pq6r];
+for i=1:6
+        fprintf('simplify (i,1)=(%d,1))',i);
+        MppQr(i) = simplify(MppQr(i));
+        CpQr(i) = simplify(CpQr(i));
+end
  
 %% Trajectory Planning based on Jacobian
 % Matrix of 5th degree polynomial 
