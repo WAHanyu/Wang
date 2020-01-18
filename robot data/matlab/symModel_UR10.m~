@@ -217,7 +217,7 @@ for i=1:6
     % Sum all inertia matrices
     M = M + M_i{i};   
 end
-clear i Mm J_cmi_0_v J_cmi_0_omega R_cmi_0;
+clear i J_cmi_0_v J_cmi_0_omega R_cmi_0;
 fprintf('\n');
 
 % Simplification
@@ -225,9 +225,10 @@ fprintf('\n');
 % replace element M(6,5) -> Something goes wrong with the memory in that
 % case
 M = simplify(M);
-M(6,5) = M(5,6);
+%M(6,5) = M(5,6);
+M_i = simplify(M_i);
 
-%% test matrix
+% test matrix
 test_M = simplify(M-M')
 
 %% matrix of Coriolis & Centripetal effects
@@ -307,14 +308,81 @@ G = [simplify(diff(Pt,q1));
      simplify(diff(Pt,q5));
      simplify(diff(Pt,q6));];
  
-%% matrices for robot regressor
-MppQr = M*[ppq1r;ppq2r;ppq3r;ppq4r;ppq5r;ppq6r];
-CpQr = C*[pq1r;pq2r;pq3r;pq4r;pq5r;pq6r];
+%% robot regressor (precomputation)
+% robot regressor of center of mass i with index j
+Theta_i_j = cell(6,3); % (j=1: Theta_i_2, j=2: Theta_i_3, j=3: Theta_i_4)
+dK_dpq_i = cell(1,6);
+dK_dq_i = cell(1,6);    
+dP_dq_i = cell(1,6);
+pQr = [pq1r;pq2r;pq3r;pq4r;pq5r;pq6r];
+pQ = [pq1;pq2;pq3;pq4;pq5;pq6];
+
 for i=1:6
-        fprintf('simplify (i,1)=(%d,1))',i);
-        MppQr(i) = simplify(MppQr(i));
-        CpQr(i) = simplify(CpQr(i));
+    % compute theta
+    fprintf('computation of Theta_i_j{%d,1:3}, ',i);
+    Theta_i_j{i,1} = Mm(i)*[1; T_i_0{i+6}(1:3,4)]; %  Theta_i_2
+    Theta_i_j{i,2} = [I{i}(1,1);I{i}(2,2);I{i}(3,3);I{i}(1,2);I{i}(1,3);I{i}(2,3)]; %  Theta_i_3
+    Theta_i_j{i,3} = Mm(i)*[T_i_0{i+6}(1:3,4).*T_i_0{i+6}(1:3,4); ...
+                            T_i_0{i+6}(1,4)*T_i_0{i+6}(2,4); ...
+                            T_i_0{i+6}(1,4)*T_i_0{i+6}(3,4); ...
+                            T_i_0{i+6}(2,4)*T_i_0{i+6}(3,4)]; %  Theta_i_4
+    
+    % compute K (kinetic energy) derivatives
+    fprintf('computation of dK_dpq_i{%d}, ',i);
+    dK_dpq_i{i} = expand(simplify(0.5*M_i{i}*pQr));
+    fprintf('computation of dK_dq_i{%d}, ',i);
+    dK_dq_i{i} = [0.5*pQ'*diff(M_i{i},q1)*pQr;
+                  0.5*pQ'*diff(M_i{i},q2)*pQr;
+                  0.5*pQ'*diff(M_i{i},q3)*pQr;
+                  0.5*pQ'*diff(M_i{i},q4)*pQr;
+                  0.5*pQ'*diff(M_i{i},q5)*pQr;
+                  0.5*pQ'*diff(M_i{i},q6)*pQr];
+    dK_dq_i{i} = expand(simplify(dK_dq_i{i}));
+    
+    % compute P (potential energy) derivative 
+    fprintf('computation of dP_dq_i{%d}\n',i);
+    dP_dq_i{i} = [diff(P_cm{i},q1); diff(P_cm{i},q2); diff(P_cm{i},q3);...
+                  diff(P_cm{i},q4); diff(P_cm{i},q5); diff(P_cm{i},q6)];
+    dP_dq_i{i} = expand(simplify(dP_dq_i{i}));
 end
+
+%% robot regressor (sorting out the correct values)
+W_i_j = cell(6,2); % W_i_j={W_i_1,W_i_2};
+pW_i_j = cell(6,2); % pW_i_j={pW_i_1,pW_i_2};
+Y_i_j = cell(6,3); % Y_i_j={Y_i_1,Y_i_2,Y_i_3};
+
+% dK_dpq_i{i} = [W_i_j{i,1}, W_i_j{i,2}]*[Theta_i_j{i,1};Theta_i_j{i,3};Theta_i_j{i,2}];
+
+
+% pW_i_j{i,j} = diff(W_i_j{i,j},t)
+
+
+% dK_dq_i{i} = -Y_i_j{i,1}*[Theta_i_j{i,1};Theta_i_j{i,3}]-Y_i_j{i,2}*Theta_i_j{i,2}
+
+
+% dK_dq_i{i} = pQ*Y_i_j{i,3}*Theta_i_j{i,1}
+
+
+% compute next values from derived equations
+Y_i_1_hat = cell(1,6);
+Y_i = cell(1,6);
+Theta_i = cell(1,6);
+for i=1:6
+    Y_i_1_hat{i} = Y_i_j{i,1}+[Y_i_j{i,3},zeros(1,6)];
+    
+    Y_i{i} = [pW_i_j{i,1}+Y_i_1_hat{i}, pW_i_j{i,1}+Y_i_j{i,2}];
+    Theta_i{i} = [Theta_i_j{i,1};Theta_i_j{i,3};Theta_i_j{i,2}];
+end
+
+% get final Y & Theta
+Yr = [Y_i{1},Y_i{2},Y_i{3},Y_i{4},Y_i{5},Y_i{6}];
+Theta = [Theta_i{1};Theta_i{2};Theta_i{3};Theta_i{4};Theta_i{5};Theta_i{6}];
+
+% test robot regressor
+fprintf('testing of robot regressor\n');
+reg_test = M*ppQr+C*pQr+G - Yr*Theta;
+reg_test = simplify(reg_test)
+
  
 %% Trajectory Planning based on Jacobian
 % Matrix of 5th degree polynomial 
@@ -728,22 +796,22 @@ fprintf(fid_7,'end \n');
 fclose(fid_7);
 
 %% matrices for robot regressor
-fid_8 = fopen('robot_regressor_matrices.txt','w');
-fprintf(fid_8,'%% inertia matrix\n');
+fid_8 = fopen('robRegMatrices_ur10.m','w');
+fprintf(fid_7,'%%%% robRegMatrices_ur10.m\n\n');
+fprintf(fid_7,'%% This file was generated automatically by "symModel_UR10".\n');
+fprintf(fid_7,'%% It contains the robot regressor matrices of the UR10 robot.\n\n');
+fprintf(fid_8,'%% Yr-matrix\n');
 for i=1:6
-        fprintf(fid_8,'MppQr(%d,1)=%s;\n',i,char(expand(MppQr(i,1))));
-end
-fprintf(fid_8,'\n');
-fprintf(fid_8,'%% coriolis & centripetal effects matrix\n');
-for i=1:6
-    for j=1:6
-        fprintf(fid_8,'CpQr(%d,1)=%s;\n',i,char(expand(CpQr(i,1))));
+    for j=1:length(Theta)
+        fprintf(fid_8,'Yr(%d,%d)=%s;\n',i,j,char(expand(Yr(i,j))));
     end
 end
 fprintf(fid_8,'\n');
-fprintf(fid_8,'%% gravitational effects matrix\n');
+fprintf(fid_8,'%% robot regressor Theta\n');
 for i=1:6
-    fprintf(fid_8,'G(%d,1)=%s;\n',i,char(expand(G(i,1))));
+    for j=1:6
+        fprintf(fid_8,'Theta(%d,1)=%s;\n',i,char(expand(CpQr(i,1))));
+    end
 end
 fprintf(fid_8,'\n');
 
