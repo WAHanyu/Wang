@@ -21,6 +21,12 @@ syms q1 q2 q3 q4 q5 q6 pq1 pq2 pq3 pq4 pq5 pq6 ppq1 ppq2 ppq3 ppq1 ppq2 ...
      I511 I512 I513 I522 I523 I533 I611 I612 I613 I622 I623 I633 pq1r pq2r ...
      pq3r pq4r pq5r pq6r ppq1r ppq2r ppq3r ppq4r ppq5r ppq6r t_final t_init ...
      p_init p_final pp_init pp_final ppp_init ppp_final real;
+ 
+Q = [q1;q2;q3;q4;q5;q6];
+pQr = [pq1r;pq2r;pq3r;pq4r;pq5r;pq6r];
+pQ = [pq1;pq2;pq3;pq4;pq5;pq6];
+ppQr = [ppq1r;ppq2r;ppq3r;ppq4r;ppq5r;ppq6r];
+ppQ = [ppq1;ppq2;ppq3;ppq4;ppq5;ppq6];
 
 %% Robot Kinematics
 % D-H table from geometric inspection
@@ -208,11 +214,13 @@ R_cmi_0 = {T_i_0{7}(1:3,1:3), T_i_0{8}(1:3,1:3), T_i_0{9}(1:3,1:3), ...
 % compute M
 M = sym(zeros(6));
 M_i = cell(1,6);
+test_M_i = cell(1,6);
 for i=1:6
     fprintf('computation of M_i{%d}, ',i);
     
     % Generate matrix for each center of mass
     M_i{i} = Mm(i)*(J_cmi_0_v{i}')*J_cmi_0_v{i} + (J_cmi_0_omega{i}')*R_cmi_0{i}*I{i}*(R_cmi_0{i}')*J_cmi_0_omega{i};
+    test_M_i{i} = simplify(M_i{i}-M_i{i}');
     
     % Sum all inertia matrices
     M = M + M_i{i};   
@@ -224,9 +232,13 @@ fprintf('\n');
 % As the matrix is suddenly not symmetric anymore after simplification
 % replace element M(6,5) -> Something goes wrong with the memory in that
 % case
-M = simplify(M);
-%M(6,5) = M(5,6);
-M_i = simplify(M_i);
+for i=1:6
+    fprintf('simplification of M{%d,:} & M_{%d}, ',i,i);
+    M(i,:) = simplify(M(i,:));
+    M_i{i} = simplify(M_i{i});
+end
+fprintf('\n');
+M(6,5) = M(5,6);
 
 % test matrix
 test_M = simplify(M-M')
@@ -256,7 +268,7 @@ end
 fprintf('\n');
 clear k j;
 
-%% Do simplification for each matrix element, because memory might run full
+% Do simplification for each matrix element, because memory might run full
 % and the simplification will cause a bad result
 sizeC = size(C);
 for i=1:sizeC(1)
@@ -274,7 +286,7 @@ pM = dM_dqi{1}*pq1+dM_dqi{2}*pq2+dM_dqi{3}*pq3+dM_dqi{4}*pq4 ...
 
 N = pM-2*C;
 test_N = simplify(N+N')
-test_N_2 = simplify([q1,q2,q3,q4,q5,q6]*N*[q1;q2;q3;q4;q5;q6])
+test_N_2 = simplify(Q*N*Q')
 
 %% gravitational torques vector G
 % IMPORTANT: Potential energy increases, if the robot goes up -> negative
@@ -314,36 +326,34 @@ Theta_i_j = cell(6,3); % (j=1: Theta_i_2, j=2: Theta_i_3, j=3: Theta_i_4)
 dK_dpq_i = cell(1,6);
 dK_dq_i = cell(1,6);    
 dP_dq_i = cell(1,6);
-pQr = [pq1r;pq2r;pq3r;pq4r;pq5r;pq6r];
-pQ = [pq1;pq2;pq3;pq4;pq5;pq6];
 
 for i=1:6
     % compute theta
     fprintf('computation of Theta_i_j{%d,1:3}, ',i);
-    Theta_i_j{i,1} = Mm(i)*[1; T_i_0{i+6}(1:3,4)]; %  Theta_i_2
+    Theta_i_j{i,1} = Mm(i)*[1; subs(relHt{i+6}(1:3,4),Q(i),0)]; %  Theta_i_2
     Theta_i_j{i,2} = [I{i}(1,1);I{i}(2,2);I{i}(3,3);I{i}(1,2);I{i}(1,3);I{i}(2,3)]; %  Theta_i_3
-    Theta_i_j{i,3} = Mm(i)*[T_i_0{i+6}(1:3,4).*T_i_0{i+6}(1:3,4); ...
-                            T_i_0{i+6}(1,4)*T_i_0{i+6}(2,4); ...
-                            T_i_0{i+6}(1,4)*T_i_0{i+6}(3,4); ...
-                            T_i_0{i+6}(2,4)*T_i_0{i+6}(3,4)]; %  Theta_i_4
+    Theta_i_j{i,3} = Mm(i)*[subs(relHt{i+6}(1:3,4),Q(i),0).*subs(relHt{i+6}(1:3,4),Q(i),0); ...
+                            subs(relHt{i+6}(1,4),Q(i),0)*subs(relHt{i+6}(2,4),Q(i),0); ...
+                            subs(relHt{i+6}(1,4),Q(i),0)*subs(relHt{i+6}(3,4),Q(i),0); ...
+                            subs(relHt{i+6}(2,4),Q(i),0)*subs(relHt{i+6}(3,4),Q(i),0)]; %  Theta_i_4
     
     % compute K (kinetic energy) derivatives
-    fprintf('computation of dK_dpq_i{%d}, ',i);
-    dK_dpq_i{i} = expand(simplify(0.5*M_i{i}*pQr));
-    fprintf('computation of dK_dq_i{%d}, ',i);
-    dK_dq_i{i} = [0.5*pQ'*diff(M_i{i},q1)*pQr;
-                  0.5*pQ'*diff(M_i{i},q2)*pQr;
-                  0.5*pQ'*diff(M_i{i},q3)*pQr;
-                  0.5*pQ'*diff(M_i{i},q4)*pQr;
-                  0.5*pQ'*diff(M_i{i},q5)*pQr;
-                  0.5*pQ'*diff(M_i{i},q6)*pQr];
-    dK_dq_i{i} = expand(simplify(dK_dq_i{i}));
-    
-    % compute P (potential energy) derivative 
-    fprintf('computation of dP_dq_i{%d}\n',i);
-    dP_dq_i{i} = [diff(P_cm{i},q1); diff(P_cm{i},q2); diff(P_cm{i},q3);...
-                  diff(P_cm{i},q4); diff(P_cm{i},q5); diff(P_cm{i},q6)];
-    dP_dq_i{i} = expand(simplify(dP_dq_i{i}));
+%     fprintf('computation of dK_dpq_i{%d}, ',i);
+%     dK_dpq_i{i} = expand(simplify(0.5*M_i{i}*pQr));
+%     fprintf('computation of dK_dq_i{%d}, ',i);
+%     dK_dq_i{i} = [0.5*pQ'*diff(M_i{i},q1)*pQr;
+%                   0.5*pQ'*diff(M_i{i},q2)*pQr;
+%                   0.5*pQ'*diff(M_i{i},q3)*pQr;
+%                   0.5*pQ'*diff(M_i{i},q4)*pQr;
+%                   0.5*pQ'*diff(M_i{i},q5)*pQr;
+%                   0.5*pQ'*diff(M_i{i},q6)*pQr];
+%     dK_dq_i{i} = expand(simplify(dK_dq_i{i}));
+%     
+%     % compute P (potential energy) derivative 
+%     fprintf('computation of dP_dq_i{%d}\n',i);
+%     dP_dq_i{i} = [diff(P_cm{i},q1); diff(P_cm{i},q2); diff(P_cm{i},q3);...
+%                   diff(P_cm{i},q4); diff(P_cm{i},q5); diff(P_cm{i},q6)];
+%     dP_dq_i{i} = expand(simplify(dP_dq_i{i}));
 end
 
 %% robot regressor (sorting out the correct values)
@@ -772,10 +782,29 @@ fprintf(fid_6,'XOut=[X_ef_0,pX_ef_0,ppX_ef_0];\n');
 fprintf(fid_6,'end \n');
 fclose(fid_6);
 
+%% matrices for robot regressor
+fid_8 = fopen('robRegMatrices_ur10.m','w');
+fprintf(fid_8,'%%%% robRegMatrices_ur10.m\n\n');
+fprintf(fid_8,'%% This file was generated automatically by "symModel_UR10".\n');
+fprintf(fid_8,'%% It contains the robot regressor matrices of the UR10 robot.\n\n');
+fprintf(fid_8,'%% Yr-matrix\n');
+for i=1:6
+    for j=1:length(Theta)
+        fprintf(fid_8,'Yr(%d,%d)=%s;\n',i,j,char(Yr(i,j)));
+    end
+end
+fprintf(fid_8,'\n');
+fprintf(fid_8,'%% robot regressor Theta\n');
+for i=1:length(Theta)
+        fprintf(fid_8,'Theta(%d,1)=%s;\n',i,char(Theta(i,1)));
+end
+fprintf(fid_8,'\n');
+
+
 %% Create trajectory according to 5th degree polynomial
 fid_7 = fopen('createEvalPTPTraj.m','w');
 fprintf(fid_7,'function [Out] = createEvalPTPTraj(t,t_init,t_final,P_init,P_final,pP_init,pP_final,ppP_init,ppP_final)\n\n');
-fprintf(fid_7,'%% This file was generated automatically by "symModel_UR10_3".\n\n');
+fprintf(fid_7,'%% This file was generated automatically by "symModel_UR10".\n\n');
 fprintf(fid_7,'for i=1:length(P_init)\n');
 fprintf(fid_7,'  p_init=P_init(i,1);\n');
 fprintf(fid_7,'  p_final=P_final(i,1);\n');
@@ -794,26 +823,5 @@ fprintf(fid_7,'end\n\n');
 fprintf(fid_7,'Out = [p_d_w{1};p_d_w{2};p_d_w{3};pp_d_w{1};pp_d_w{2};pp_d_w{3};ppp_d_w{1};ppp_d_w{2};ppp_d_w{3}];\n');
 fprintf(fid_7,'end \n');
 fclose(fid_7);
-
-%% matrices for robot regressor
-fid_8 = fopen('robRegMatrices_ur10.m','w');
-fprintf(fid_7,'%%%% robRegMatrices_ur10.m\n\n');
-fprintf(fid_7,'%% This file was generated automatically by "symModel_UR10".\n');
-fprintf(fid_7,'%% It contains the robot regressor matrices of the UR10 robot.\n\n');
-fprintf(fid_8,'%% Yr-matrix\n');
-for i=1:6
-    for j=1:length(Theta)
-        fprintf(fid_8,'Yr(%d,%d)=%s;\n',i,j,char(expand(Yr(i,j))));
-    end
-end
-fprintf(fid_8,'\n');
-fprintf(fid_8,'%% robot regressor Theta\n');
-for i=1:6
-    for j=1:6
-        fprintf(fid_8,'Theta(%d,1)=%s;\n',i,char(expand(CpQr(i,1))));
-    end
-end
-fprintf(fid_8,'\n');
-
 end
 

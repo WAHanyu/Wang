@@ -22,9 +22,11 @@ syms q1 q2 q3 q4 q5 q6 pq1 pq2 pq3 pq4 pq5 pq6 ppq1 ppq2 ppq3 ppq1 ppq2 ...
      pq3r pq4r pq5r pq6r ppq1r ppq2r ppq3r ppq4r ppq5r ppq6r t_final t_init ...
      p_init p_final pp_init pp_final ppp_init ppp_final real;
  
+Q = [q1;q2;q3;q4;q5;q6];
 pQr = [pq1r;pq2r;pq3r;pq4r;pq5r;pq6r];
 pQ = [pq1;pq2;pq3;pq4;pq5;pq6];
 ppQr = [ppq1r;ppq2r;ppq3r;ppq4r;ppq5r;ppq6r];
+ppQ = [ppq1;ppq2;ppq3;ppq4;ppq5;ppq6];
 
 %% Robot Kinematics
 % D-H table from geometric inspection
@@ -212,11 +214,13 @@ R_cmi_0 = {T_i_0{7}(1:3,1:3), T_i_0{8}(1:3,1:3), T_i_0{9}(1:3,1:3), ...
 % compute M
 M = sym(zeros(6));
 M_i = cell(1,6);
+test_M_i = cell(1,6);
 for i=1:6
     fprintf('computation of M_i{%d}, ',i);
     
     % Generate matrix for each center of mass
     M_i{i} = Mm(i)*(J_cmi_0_v{i}')*J_cmi_0_v{i} + (J_cmi_0_omega{i}')*R_cmi_0{i}*I{i}*(R_cmi_0{i}')*J_cmi_0_omega{i};
+    test_M_i{i} = simplify(M_i{i}-M_i{i}');
     
     % Sum all inertia matrices
     M = M + M_i{i};   
@@ -228,9 +232,13 @@ fprintf('\n');
 % As the matrix is suddenly not symmetric anymore after simplification
 % replace element M(6,5) -> Something goes wrong with the memory in that
 % case
-M = simplify(M);
-%M(6,5) = M(5,6);
-M_i = simplify(M_i);
+for i=1:6
+    fprintf('simplification of M{%d,:} & M_{%d}, ',i,i);
+    M(i,:) = simplify(M(i,:));
+    M_i{i} = simplify(M_i{i});
+end
+fprintf('\n');
+M(6,5) = M(5,6);
 
 % test matrix
 test_M = simplify(M-M')
@@ -260,7 +268,7 @@ end
 fprintf('\n');
 clear k j;
 
-%% Do simplification for each matrix element, because memory might run full
+% Do simplification for each matrix element, because memory might run full
 % and the simplification will cause a bad result
 sizeC = size(C);
 for i=1:sizeC(1)
@@ -278,7 +286,7 @@ pM = dM_dqi{1}*pq1+dM_dqi{2}*pq2+dM_dqi{3}*pq3+dM_dqi{4}*pq4 ...
 
 N = pM-2*C;
 test_N = simplify(N+N')
-test_N_2 = simplify([q1,q2,q3,q4,q5,q6]*N*[q1;q2;q3;q4;q5;q6])
+test_N_2 = simplify(Q*N*Q')
 
 %% gravitational torques vector G
 % IMPORTANT: Potential energy increases, if the robot goes up -> negative
@@ -322,12 +330,12 @@ dP_dq_i = cell(1,6);
 for i=1:6
     % compute theta
     fprintf('computation of Theta_i_j{%d,1:3}, ',i);
-    Theta_i_j{i,1} = Mm(i)*[1; T_i_0{i+6}(1:3,4)]; %  Theta_i_2
+    Theta_i_j{i,1} = Mm(i)*[1; subs(relHt{i+6}(1:3,4),Q(i),0)]; %  Theta_i_2
     Theta_i_j{i,2} = [I{i}(1,1);I{i}(2,2);I{i}(3,3);I{i}(1,2);I{i}(1,3);I{i}(2,3)]; %  Theta_i_3
-    Theta_i_j{i,3} = Mm(i)*[T_i_0{i+6}(1:3,4).*T_i_0{i+6}(1:3,4); ...
-                            T_i_0{i+6}(1,4)*T_i_0{i+6}(2,4); ...
-                            T_i_0{i+6}(1,4)*T_i_0{i+6}(3,4); ...
-                            T_i_0{i+6}(2,4)*T_i_0{i+6}(3,4)]; %  Theta_i_4
+    Theta_i_j{i,3} = Mm(i)*[subs(relHt{i+6}(1:3,4),Q(i),0).*subs(relHt{i+6}(1:3,4),Q(i),0); ...
+                            subs(relHt{i+6}(1,4),Q(i),0)*subs(relHt{i+6}(2,4),Q(i),0); ...
+                            subs(relHt{i+6}(1,4),Q(i),0)*subs(relHt{i+6}(3,4),Q(i),0); ...
+                            subs(relHt{i+6}(2,4),Q(i),0)*subs(relHt{i+6}(3,4),Q(i),0)]; %  Theta_i_4
     
     % compute K (kinetic energy) derivatives
     fprintf('computation of dK_dpq_i{%d}, ',i);
@@ -774,7 +782,7 @@ fprintf(fid_6,'XOut=[X_ef_0,pX_ef_0,ppX_ef_0];\n');
 fprintf(fid_6,'end \n');
 fclose(fid_6);
 
-% matrices for robot regressor
+%% matrices for robot regressor
 fid_8 = fopen('robRegMatrices_ur10.m','w');
 fprintf(fid_8,'%%%% robRegMatrices_ur10.m\n\n');
 fprintf(fid_8,'%% This file was generated automatically by "symModel_UR10".\n');
