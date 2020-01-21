@@ -335,53 +335,59 @@ for i=1:6
     Theta_i_j{i,3} = Mm(i)*[subs(relHt{i+6}(1:3,4),Q(i),0).*subs(relHt{i+6}(1:3,4),Q(i),0); ...
                             subs(relHt{i+6}(1,4),Q(i),0)*subs(relHt{i+6}(2,4),Q(i),0); ...
                             subs(relHt{i+6}(1,4),Q(i),0)*subs(relHt{i+6}(3,4),Q(i),0); ...
-                            subs(relHt{i+6}(2,4),Q(i),0)*subs(relHt{i+6}(3,4),Q(i),0)]; %  Theta_i_4
+                            subs(relHt{i+6}(2,4),Q(i),0)*subs(relHt{i+6}(3,4),Q(i),0)]; %  Theta_i_4               
     
     % compute K (kinetic energy) derivatives
-%     fprintf('computation of dK_dpq_i{%d}, ',i);
-%     dK_dpq_i{i} = expand(simplify(0.5*M_i{i}*pQr));
-%     fprintf('computation of dK_dq_i{%d}, ',i);
-%     dK_dq_i{i} = [0.5*pQ'*diff(M_i{i},q1)*pQr;
-%                   0.5*pQ'*diff(M_i{i},q2)*pQr;
-%                   0.5*pQ'*diff(M_i{i},q3)*pQr;
-%                   0.5*pQ'*diff(M_i{i},q4)*pQr;
-%                   0.5*pQ'*diff(M_i{i},q5)*pQr;
-%                   0.5*pQ'*diff(M_i{i},q6)*pQr];
-%     dK_dq_i{i} = expand(simplify(dK_dq_i{i}));
-%     
-%     % compute P (potential energy) derivative 
-%     fprintf('computation of dP_dq_i{%d}\n',i);
-%     dP_dq_i{i} = [diff(P_cm{i},q1); diff(P_cm{i},q2); diff(P_cm{i},q3);...
-%                   diff(P_cm{i},q4); diff(P_cm{i},q5); diff(P_cm{i},q6)];
-%     dP_dq_i{i} = expand(simplify(dP_dq_i{i}));
+    fprintf('computation of dK_dpq_i{%d}, ',i);
+    dK_dpq_i{i} = expand(simplify(0.5*M_i{i}*pQr));
+    fprintf('computation of dK_dq_i{%d}, ',i);
+    dK_dq_i{i} = [0.5*pQ'*diff(M_i{i},q1)*pQr;
+                  0.5*pQ'*diff(M_i{i},q2)*pQr;
+                  0.5*pQ'*diff(M_i{i},q3)*pQr;
+                  0.5*pQ'*diff(M_i{i},q4)*pQr;
+                  0.5*pQ'*diff(M_i{i},q5)*pQr;
+                  0.5*pQ'*diff(M_i{i},q6)*pQr];
+    dK_dq_i{i} = expand(simplify(dK_dq_i{i}));
+    
+    % compute P (potential energy) derivative 
+    fprintf('computation of dP_dq_i{%d}\n',i);
+    dP_dq_i{i} = [diff(P_cm{i},q1); diff(P_cm{i},q2); diff(P_cm{i},q3);...
+                  diff(P_cm{i},q4); diff(P_cm{i},q5); diff(P_cm{i},q6)];
+    dP_dq_i{i} = expand(simplify(dP_dq_i{i}));
 end
 
+% Remapping of Theta vector due to zero components
+Theta_i_j{1,1} = [Theta_i_j{1,1}(1);Theta_i_j{1,1}(4)];
+Theta_i_j{1,3} = [Theta_i_j{1,3}(3)];
+Theta_i_j{2,1} = [Theta_i_j{2,1}(1);Theta_i_j{2,1}();Theta_i_j{2,1}(4)];
+
+
 %% robot regressor (sorting out the correct values)
-W_i_j = cell(6,2); % W_i_j={W_i_1,W_i_2};
-pW_i_j = cell(6,2); % pW_i_j={pW_i_1,pW_i_2};
+W_i = cell(6,2); % W_i=[W_i_1,W_i_2];
+pW_i = cell(6,2); % pW_i_j=[pW_i_1,pW_i_2];
 Y_i_j = cell(6,3); % Y_i_j={Y_i_1,Y_i_2,Y_i_3};
+Theta_i = cell(1,6);
 
-% dK_dpq_i{i} = [W_i_j{i,1}, W_i_j{i,2}]*[Theta_i_j{i,1};Theta_i_j{i,3};Theta_i_j{i,2}];
+% dK_dpq_i{i} = W_i{i}*Theta_i{i};
+W_i{1} = zeros(length(Theta_i{1},);
 
-
-% pW_i_j{i,j} = diff(W_i_j{i,j},t)
-
-
-% dK_dq_i{i} = -Y_i_j{i,1}*[Theta_i_j{i,1};Theta_i_j{i,3}]-Y_i_j{i,2}*Theta_i_j{i,2}
+% pW_i_j{i,j} = diff(W_i{i,j},t)
 
 
-% dK_dq_i{i} = pQ*Y_i_j{i,3}*Theta_i_j{i,1}
+% dK_dq_i{i} = -Y_i_j{i,1}*Theta_i{i}
+
+
+% dP_dq_i{i} = pQ*Y_i_j{i,3}*Theta_i_j{i,1}
 
 
 % compute next values from derived equations
 Y_i_1_hat = cell(1,6);
 Y_i = cell(1,6);
-Theta_i = cell(1,6);
 for i=1:6
     Y_i_1_hat{i} = Y_i_j{i,1}+[Y_i_j{i,3},zeros(1,6)];
     
-    Y_i{i} = [pW_i_j{i,1}+Y_i_1_hat{i}, pW_i_j{i,1}+Y_i_j{i,2}];
     Theta_i{i} = [Theta_i_j{i,1};Theta_i_j{i,3};Theta_i_j{i,2}];
+    Y_i{i} = pW_i{i}+[Y_i_1_hat{i}, Y_i_j{i,2}];
 end
 
 % get final Y & Theta
@@ -783,6 +789,77 @@ fprintf(fid_6,'end \n');
 fclose(fid_6);
 
 %% matrices for robot regressor
+fid_9 = fopen('robRegMatricesPreCalc_ur10.txt','w');
+fprintf(fid_9,'/* robRegMatricesPreCalc_ur10.txt */\n\n');
+fprintf(fid_9,'/* This file was generated automatically by "symModel_UR10".\n');
+fprintf(fid_9,'   It contains the robot regressor matrices of the UR10 robot. */\n\n');
+fprintf(fid_9,'// Theta_i_1 (= Theta_i_j{i,1})\n');
+for i=1:6
+    sZ = size(Theta_i_j{i,1});
+    for k=1:sZ(1)
+        for l=1:sZ(2)
+            fprintf(fid_9,'Theta_%d_1(%d,%d)=%s;\n',i,(k-1),(l-1),char(Theta_i_j{i,1}(k,l)));
+        end
+    end
+    fprintf(fid_9,'\n');
+end
+fprintf(fid_9,'\n');
+fprintf(fid_9,'// Theta_i_2 (= Theta_i_j{i,2})\n');
+for i=1:6
+    sZ = size(Theta_i_j{i,2});
+    for k=1:sZ(1)
+        for l=1:sZ(2)
+            fprintf(fid_9,'Theta_%d_2(%d,%d)=%s;\n',i,(k-1),(l-1),char(Theta_i_j{i,2}(k,l)));
+        end
+    end
+    fprintf(fid_9,'\n');
+end
+fprintf(fid_9,'\n');
+fprintf(fid_9,'// Theta_i_3 (= Theta_i_j{i,3})\n');
+for i=1:6
+    sZ = size(Theta_i_j{i,3});
+    for k=1:sZ(1)
+        for l=1:sZ(2)
+            fprintf(fid_9,'Theta_%d_3(%d,%d)=%s;\n',i,(k-1),(l-1),char(Theta_i_j{i,3}(k,l)));
+        end
+    end
+    fprintf(fid_9,'\n');
+end
+fprintf(fid_9,'\n');
+fprintf(fid_9,'// dK_dpq_i = W_i*[Theta_i_1;Theta_i_3;Theta_i_2] (= dK_dpq_i{i}) \n');
+for i=1:6
+    sZ = size(dK_dpq_i{i});
+    for k=1:sZ(1)
+        for l=1:sZ(2)
+            fprintf(fid_9,'dK_dpq_%d(%d,%d)=%s;\n',i,(k-1),(l-1),char(dK_dpq_i{i}(k,l)));
+        end
+    end
+    fprintf(fid_9,'\n');
+end
+fprintf(fid_9,'\n');
+fprintf(fid_9,'// dK_dq_i = Y_i_1*Theta_i_1 + Y_i_2*Theta_i_2 (= dK_dq_i{i}) \n');
+for i=1:6
+    sZ = size(dK_dq_i{i});
+    for k=1:sZ(1)
+        for l=1:sZ(2)
+            fprintf(fid_9,'dK_dq_%d(%d,%d)=%s;\n',i,(k-1),(l-1),char(dK_dq_i{i}(k,l)));
+        end
+    end
+    fprintf(fid_9,'\n');
+end
+fprintf(fid_9,'\n');
+fprintf(fid_9,'// dP_dq_i = pQ*Y_i_3*Theta_i_1 (= dP_dq_i{i}) \n');
+for i=1:6
+    sZ = size(dK_dq_i{i});
+    for k=1:sZ(1)
+        for l=1:sZ(2)
+            fprintf(fid_9,'dP_dq_%d(%d,%d)=%s;\n',i,(k-1),(l-1),char(dP_dq_i{i}(k,l)));
+        end
+    end
+    fprintf(fid_9,'\n');
+end
+fprintf(fid_9,'\n');
+
 fid_8 = fopen('robRegMatrices_ur10.m','w');
 fprintf(fid_8,'%%%% robRegMatrices_ur10.m\n\n');
 fprintf(fid_8,'%% This file was generated automatically by "symModel_UR10".\n');
